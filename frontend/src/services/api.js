@@ -5,7 +5,7 @@ const BASE =
   process.env.REACT_APP_API_URL ||
   (window.location.hostname === 'localhost'
     ? 'http://localhost:5000/api'
-    : 'https://YOUR-BACKEND-NAME.up.railway.app/api');
+    : 'https://backendmedicarehospitaldemo-production.up.railway.app/api');
 
 // Create axios instance
 const api = axios.create({
