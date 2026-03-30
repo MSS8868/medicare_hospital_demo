@@ -24,12 +24,23 @@ if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 // ── Security ──────────────────────────────────────────────────────────────────
 app.use(helmet({ crossOriginEmbedderPolicy: false, contentSecurityPolicy: false }));
 
-// PART 3 FIX: open CORS for production Railway deployment
+// CORS configuration for production
+const allowedOrigins = [
+  'http://localhost:3000',              // local development
+  'https://frontendmedicarehospitaldemo-production.up.railway.app', // production frontend
+];
+
 app.use(cors({
-  origin: '*',                           // allow all origins — restrict to your domain once known
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'));
+    }
+  },
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
-  credentials: false,                    // must be false when origin:'*'
+  credentials: true,
 }));
 app.options('*', cors());               // handle preflight for all routes
 
