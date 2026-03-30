@@ -17,6 +17,9 @@ const routes = require('./routes');
 const app  = express();
 const PORT = process.env.PORT || 5000;
 
+// ── Trust proxy for Railway/production ────────────────────────────────────────
+app.set('trust proxy', 1);
+
 // Uploads dir
 const uploadsDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
