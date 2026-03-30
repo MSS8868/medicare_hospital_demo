@@ -12,6 +12,7 @@ const fs         = require('fs');
 const logger = require('./utils/logger');
 const { sequelize } = require('./models');
 const { releaseExpiredLocks } = require('./utils/slotEngine');
+const seedDatabase = require('./utils/seed');
 const routes = require('./routes');
 
 const app  = express();
@@ -97,6 +98,10 @@ async function start() {
     logger.info('✅ Database connected');
     await sequelize.sync({ force: false, alter: false });
     logger.info('✅ Database ready');
+
+    // Auto-seed database
+    await seedDatabase();
+
     app.listen(PORT, '0.0.0.0', () => {
       logger.info(`🚀 Server on http://0.0.0.0:${PORT}`);
     });

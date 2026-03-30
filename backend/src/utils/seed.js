@@ -140,84 +140,173 @@ const doctors = [
   },
 ];
 
-async function seed() {
-  console.log('🌱 Starting seed...');
+// ── EXPORTED SEED FUNCTION (for auto-run on startup) ────────────────────────────
+async function seedDatabase() {
   try {
-    // force:true drops and recreates all tables — clean slate
-    await sequelize.sync({ force: true });
-    console.log('✅ Schema created fresh');
+    console.log('🌱 Checking/seeding database...');
 
-    // Departments
+    // Check if data already exists
+    const existingAdmin = await User.findOne({ where: { mobile: '9999999999' } });
+    if (existingAdmin) {
+      console.log('✅ Database already seeded, skipping...');
+      return;
+    }
+
+    // Departments (findOrCreate to prevent duplicates)
     const deptMap = {};
     for (const d of departments) {
-      const dept = await Department.create({ id: uuidv4(), ...d });
+      const [dept] = await Department.findOrCreate({
+        where: { name: d.name },
+        defaults: { id: uuidv4(), ...d },
+      });
       deptMap[d.name] = dept.id;
     }
-    console.log(`✅ ${departments.length} departments`);
+    console.log(`✅ ${departments.length} departments ensured`);
 
-    // Admin
-    await User.create({ id: uuidv4(), name: 'Hospital Admin', mobile: '9999999999', email: 'admin@medicare.com', role: 'admin', password: 'Admin@123', isActive: true });
+    // Admin (findOrCreate)
+    await User.findOrCreate({
+      where: { mobile: '9999999999' },
+      defaults: {
+        id: uuidv4(),
+        name: 'Hospital Admin',
+        email: 'admin@medicare.com',
+        role: 'admin',
+        password: 'Admin@123',
+        isActive: true,
+      },
+    });
     console.log('✅ Admin: 9999999999 / Admin@123');
 
-    // Receptionist
-    await User.create({ id: uuidv4(), name: 'Priya Sharma', mobile: '9888888888', email: 'receptionist@medicare.com', role: 'receptionist', password: 'Recep@123', isActive: true });
+    // Receptionist (findOrCreate)
+    await User.findOrCreate({
+      where: { mobile: '9888888888' },
+      defaults: {
+        id: uuidv4(),
+        name: 'Priya Sharma',
+        email: 'receptionist@medicare.com',
+        role: 'receptionist',
+        password: 'Recep@123',
+        isActive: true,
+      },
+    });
     console.log('✅ Receptionist: 9888888888 / Recep@123');
 
-    // Doctors
+    // Doctors (findOrCreate)
     let docCount = 0;
     for (const d of doctors) {
       const deptId = deptMap[d.dept];
-      if (!deptId) { console.warn(`⚠️  Dept not found: ${d.dept}`); continue; }
+      if (!deptId) {
+        console.warn(`⚠️  Dept not found: ${d.dept}`);
+        continue;
+      }
 
-      const user = await User.create({
-        id: uuidv4(), name: d.name, mobile: d.mobile, email: d.email,
-        role: 'doctor', password: 'Doctor@123', isActive: true,
+      // Find or create user
+      const [user] = await User.findOrCreate({
+        where: { mobile: d.mobile },
+        defaults: {
+          id: uuidv4(),
+          name: d.name,
+          email: d.email,
+          role: 'doctor',
+          password: 'Doctor@123',
+          isActive: true,
+        },
       });
 
-      const doctor = await Doctor.create({
-        id: uuidv4(), userId: user.id, departmentId: deptId,
-        specialization: d.spec, qualification: d.qual,
-        experience: d.exp, bio: d.bio,
-        consultationFee: d.fee, slotDuration: 15, isAvailable: true,
-        languages: 'English, Kannada',
+      // Find or create doctor profile
+      const [doctor] = await Doctor.findOrCreate({
+        where: { userId: user.id },
+        defaults: {
+          id: uuidv4(),
+          userId: user.id,
+          departmentId: deptId,
+          specialization: d.spec,
+          qualification: d.qual,
+          experience: d.exp,
+          bio: d.bio,
+          consultationFee: d.fee,
+          slotDuration: 15,
+          isAvailable: true,
+          languages: 'English, Kannada',
+        },
       });
 
-      // Mon–Sat schedule
+      // Create schedules (Mon-Sat)
       for (const day of [1, 2, 3, 4, 5, 6]) {
-        await DoctorSchedule.create({
-          id: uuidv4(), doctorId: doctor.id, dayOfWeek: day,
-          startTime: '09:00', endTime: '17:00',
-          breakStart: '13:00', breakEnd: '14:00',
-          isActive: true, maxPatients: 20,
+        await DoctorSchedule.findOrCreate({
+          where: { doctorId: doctor.id, dayOfWeek: day },
+          defaults: {
+            id: uuidv4(),
+            doctorId: doctor.id,
+            dayOfWeek: day,
+            startTime: '09:00',
+            endTime: '17:00',
+            breakStart: '13:00',
+            breakEnd: '14:00',
+            isActive: true,
+            maxPatients: 20,
+          },
         });
       }
       docCount++;
     }
-    console.log(`✅ ${docCount} doctors with schedules`);
+    console.log(`✅ ${docCount} doctors ensured`);
 
-    // Sample patient
-    const patientUser = await User.create({
-      id: uuidv4(), name: 'Rajesh Kumar', mobile: '9700000001',
-      email: 'rajesh@example.com', role: 'patient', isActive: true,
+    // Sample patient (findOrCreate)
+    const [patientUser] = await User.findOrCreate({
+      where: { mobile: '9700000001' },
+      defaults: {
+        id: uuidv4(),
+        name: 'Rajesh Kumar',
+        email: 'rajesh@example.com',
+        role: 'patient',
+        isActive: true,
+      },
     });
-    await Patient.create({
-      id: uuidv4(), userId: patientUser.id, age: 35,
-      gender: 'male', bloodGroup: 'B+',
-      address: '45 MG Road, Bangalore, Karnataka 560001',
-      patientId: 'PAT-000001', existingConditions: 'Hypertension',
-    });
-    console.log('✅ Sample patient: 9700000001 (OTP: 123456 in demo mode)');
 
-    console.log('\n🎉 Seed complete!\n');
+    await Patient.findOrCreate({
+      where: { userId: patientUser.id },
+      defaults: {
+        id: uuidv4(),
+        userId: patientUser.id,
+        age: 35,
+        gender: 'male',
+        bloodGroup: 'B+',
+        address: '45 MG Road, Bangalore, Karnataka 560001',
+        patientId: 'PAT-000001',
+        existingConditions: 'Hypertension',
+      },
+    });
+    console.log('✅ Sample patient: 9700000001 (OTP: 123456)');
+
+    console.log('\n🎉 Database seeded successfully!\n');
     console.log('LOGIN CREDENTIALS:');
     console.log('  Admin        →  9999999999  /  Admin@123');
     console.log('  Receptionist →  9888888888  /  Recep@123');
     console.log('  Doctors      →  9800000001 – 9800000017  /  Doctor@123');
     console.log('  Patient      →  9700000001  /  OTP: 123456\n');
+  } catch (err) {
+    console.error('❌ Seed error:', err.message);
+    throw err;
+  }
+}
+
+// ── STANDALONE SCRIPT MODE (for manual npm run seed) ────────────────────────────
+async function runStandalone() {
+  try {
+    await sequelize.sync({ force: true });
+    console.log('✅ Schema created fresh');
+    await seedDatabase();
     process.exit(0);
   } catch (err) {
     console.error('❌ Seed error:', err);
     process.exit(1);
   }
 }
-seed();
+
+// If called directly via command line (not imported)
+if (require.main === module) {
+  runStandalone();
+}
+
+module.exports = seedDatabase;
